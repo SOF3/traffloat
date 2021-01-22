@@ -79,7 +79,7 @@ pub struct Render {
     sphere_buf: Model,
 }
 
-impl Canvas {
+impl Render {
     pub fn new(gl: WebGlRenderingContext, noise_seed: u64) -> Self {
         let (object_program, star_program) = create_programs!(&gl;
             object

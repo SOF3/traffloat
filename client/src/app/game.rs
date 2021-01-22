@@ -10,8 +10,9 @@ use yew::services::resize::{ResizeService, ResizeTask, WindowDimensions};
 use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 
 use crate::keymap::{Action, ActionEvent};
-use crate::render::{Camera, Canvas};
+use crate::render::{Camera, Render};
 use common::types::{Clock, Time};
+use super::canvas::Canvas;
 
 pub struct Game {
     link: ComponentLink<Self>,
@@ -45,18 +46,6 @@ impl Game {
             .unwrap();
         (elem, gl)
     }
-
-    fn run_render(&mut self) {
-        let canvas = self.setup.0.get_mut::<Canvas>();
-        if let Some(canvas) = canvas {
-            canvas.render_requested = true;
-        }
-    }
-
-    fn schedule_render(&mut self) {
-        let task = RenderService::request_animation_frame(self.link.callback(Message::Render));
-        self.render_task = Some(task);
-    }
 }
 
 impl Component for Game {
@@ -75,6 +64,17 @@ impl Component for Game {
             link.callback(Message::WsStatus),
         )
         .unwrap();
+
+        let body = Self::document().body().unwrap();
+
+        self.key_handles.push(KeyboardService::register_key_down(
+            &body,
+            link.callback(Message::KeyDown),
+        ));
+        self.key_handles.push(KeyboardService::register_key_up(
+            &body,
+            link.callback(Message::KeyUp),
+        ));
 
         Self {
             link,
@@ -133,50 +133,8 @@ impl Component for Game {
     }
 
     fn view(&self) -> Html {
-        let style = format!(
-            "f\
-        f"
-        );
-
         html! {
-            <canvas id="game_canvas"
-                width=self.dim.width height=self.dim.height
-                style=style
-                />
-        }
-    }
-
-    fn rendered(&mut self, first_render: bool) {
-        let (_, gl) = Self::canvas();
-        let canvas = Canvas::new(gl, self.props.server_seed());
-        match self.setup.0.get_mut::<Canvas>() {
-            Some(ptr) => *ptr = canvas,
-            None => self.setup.0.insert::<Canvas>(canvas),
-        }
-        let camera = self
-            .setup
-            .0
-            .get_mut::<Camera>()
-            .expect("Camera should be initialized");
-
-        #[allow(clippy::cast_precision_loss)]
-        {
-            camera.aspect = (self.dim.width as f32) / (self.dim.height as f32);
-        }
-
-        let body = Self::document().body().unwrap();
-
-        self.key_handles.push(KeyboardService::register_key_down(
-            &body,
-            self.link.callback(Message::KeyDown),
-        ));
-        self.key_handles.push(KeyboardService::register_key_up(
-            &body,
-            self.link.callback(Message::KeyUp),
-        ));
-
-        if first_render {
-            self.schedule_render();
+            <Canvas />
         }
     }
 }
