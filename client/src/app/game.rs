@@ -7,8 +7,8 @@ use yew::services::interval::{IntervalService, IntervalTask};
 use yew::services::keyboard::{KeyListenerHandle, KeyboardService};
 use yew::services::render::{RenderService, RenderTask};
 use yew::services::resize::{ResizeService, ResizeTask, WindowDimensions};
+use yew::services::websocket::{WebSocketService, WebSocketStatus, WebSocketTask};
 
-use super::WebSocket;
 use crate::keymap::{Action, ActionEvent};
 use crate::render::{Camera, Canvas};
 use common::types::{Clock, Time};
@@ -18,6 +18,8 @@ pub struct Game {
     props: Properties,
     _resize_task: ResizeTask,
     _dispatch_task: IntervalTask,
+    ws_addr: String,
+    ws: WebSocketTask,
     render_task: Option<RenderTask>,
     key_handles: Vec<KeyListenerHandle>,
     dim: WindowDimensions,
@@ -65,11 +67,22 @@ impl Component for Game {
         let resize_task = ResizeService::new().register(link.callback(Message::WindowResize));
         let dispatch_task =
             IntervalService::spawn(Duration::from_millis(10), link.callback(Message::Dispatch));
+
+        let ws_addr = format!("wss://{}:{}", props.addr, props.port);
+        let ws = WebSocketService::connect_binary(
+            &ws_addr,
+            link.callback(Message::WsReceive),
+            link.callback(Message::WsStatus),
+        )
+        .unwrap();
+
         Self {
             link,
             props,
             _resize_task: resize_task,
             _dispatch_task: dispatch_task,
+            ws_addr,
+            ws,
             key_handles: Vec::new(),
             render_task: None,
             dim: WindowDimensions::get_dimensions(&web_sys::window().unwrap()),
@@ -120,10 +133,15 @@ impl Component for Game {
     }
 
     fn view(&self) -> Html {
+        let style = format!(
+            "f\
+        f"
+        );
+
         html! {
             <canvas id="game_canvas"
                 width=self.dim.width height=self.dim.height
-                style="width: 100vw; height: 100vh; display: block;"
+                style=style
                 />
         }
     }
@@ -169,13 +187,17 @@ pub enum Message {
     KeyDown(KeyboardEvent),
     KeyUp(KeyboardEvent),
     Dispatch(()),
+    WsReceive(anyhow::Result<Vec<u8>>),
+    WsStatus(WebSocketStatus),
 }
 
 #[derive(Clone, Debug, Properties)]
 pub struct Properties {
     pub addr: String,
     pub port: u16,
-    pub ws: WebSocket,
+    pub allow_insecure: bool,
+    pub name: String,
+    pub identity: Vec<u8>,
 }
 
 impl Properties {

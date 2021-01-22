@@ -8,7 +8,7 @@ mod camera;
 pub use camera::Camera;
 
 mod canvas;
-pub use canvas::Canvas;
+pub use canvas::Render;
 
 #[derive(Debug, Component, Default)]
 #[storage(storage::NullStorage)]
@@ -100,7 +100,7 @@ pub fn setup_specs((mut world, mut dispatcher): common::Setup) -> common::Setup 
     use specs::WorldExt;
 
     world.register::<Rendered>();
-    dispatcher = dispatcher.with(RenderSystem::new(&mut world), "render", &[]);
+    dispatcher = dispatcher.with_thread_local(RenderSystem::new(&mut world));
     dispatcher = dispatcher.with(
         camera::ViewSystem::new(&mut world),
         "camera_view",
